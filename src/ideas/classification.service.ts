@@ -1,4 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import OpenAI from 'openai';
 
 export interface ClassificationCategory {
@@ -9,6 +13,12 @@ export interface ClassificationCategory {
 export interface ClassificationResult {
   categorySlug: string | null;
   confidence: 'high' | 'medium' | 'low';
+}
+
+export interface ParsedIdeaResult {
+  title: string;
+  description: string;
+  categorySlug: string | null;
 }
 
 const OPENAI_MODEL = 'gpt-4o-mini';
@@ -60,6 +70,85 @@ export class ClassificationService {
       );
       return { categorySlug: null, confidence: 'low' };
     }
+  }
+
+  async parseIdea(
+    message: string,
+    categories: ClassificationCategory[],
+  ): Promise<ParsedIdeaResult> {
+    const apiKey = process.env.OPENAI_API;
+    if (!apiKey) {
+      throw new UnprocessableEntityException(
+        'Не удалось выделить заголовок идеи. Уточните описание проблемы.',
+      );
+    }
+
+    const client = new OpenAI({ apiKey, timeout: REQUEST_TIMEOUT_MS });
+
+    try {
+      const response = await client.chat.completions.create({
+        model: OPENAI_MODEL,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [
+          {
+            role: 'user',
+            content: this.buildParsePrompt(message, categories),
+          },
+        ],
+      });
+
+      const content = response.choices[0]?.message?.content;
+      if (!content) throw new Error('Пустой ответ от OpenAI');
+
+      const parsed = JSON.parse(content) as {
+        title?: unknown;
+        description?: unknown;
+        categorySlug?: unknown;
+      };
+      const title = typeof parsed.title === 'string' ? parsed.title.trim() : '';
+      if (!title) {
+        throw new UnprocessableEntityException(
+          'Не удалось выделить заголовок идеи. Уточните описание проблемы.',
+        );
+      }
+
+      const description =
+        typeof parsed.description === 'string' && parsed.description.trim()
+          ? parsed.description.trim()
+          : message;
+      const categorySlug = categories.some(
+        (category) => category.slug === parsed.categorySlug,
+      )
+        ? (parsed.categorySlug as string)
+        : null;
+
+      return { title, description, categorySlug };
+    } catch (error) {
+      if (error instanceof UnprocessableEntityException) throw error;
+      this.logger.warn(
+        `Не удалось разобрать идею: ${error instanceof Error ? error.message : String(error)}`,
+      );
+      throw new UnprocessableEntityException(
+        'Не удалось выделить заголовок идеи. Уточните описание проблемы.',
+      );
+    }
+  }
+
+  private buildParsePrompt(
+    message: string,
+    categories: ClassificationCategory[],
+  ): string {
+    const categorySlugs = categories
+      .map((category) => category.slug)
+      .join(', ');
+
+    return `Преобразуй сообщение жителя в структурированную идею для Smart City.
+
+Сообщение: ${message}
+Допустимые categorySlug: ${categorySlugs || 'нет доступных категорий'}.
+
+Верни строго JSON без markdown: {"title":"краткий заголовок","description":"понятное описание проблемы","categorySlug":"slug из списка или null"}. Не выдумывай факты. Если проблему нельзя понять, верни пустой title.`;
   }
 
   private buildPrompt(

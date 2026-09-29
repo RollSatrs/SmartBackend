@@ -105,4 +105,52 @@ describe('ClassificationService', () => {
     ).resolves.toEqual({ categorySlug: null, confidence: 'low' });
     expect(createMock).not.toHaveBeenCalled();
   });
+
+  it('извлекает структурированные поля идеи из сообщения', async () => {
+    process.env.OPENAI_API = 'test-key';
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              title: 'Яма возле школы',
+              description: 'Машины объезжают глубокую яму возле школы.',
+              categorySlug: 'roads',
+            }),
+          },
+        },
+      ],
+    });
+    const service = new ClassificationService();
+
+    await expect(
+      service.parseIdea('Тут яма возле школы, машины объезжают', categories),
+    ).resolves.toEqual({
+      title: 'Яма возле школы',
+      description: 'Машины объезжают глубокую яму возле школы.',
+      categorySlug: 'roads',
+    });
+  });
+
+  it('возвращает 422, если модель не выделила заголовок', async () => {
+    process.env.OPENAI_API = 'test-key';
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              title: '   ',
+              description: 'Недостаточно данных',
+              categorySlug: null,
+            }),
+          },
+        },
+      ],
+    });
+    const service = new ClassificationService();
+
+    await expect(
+      service.parseIdea('Что-то не так', categories),
+    ).rejects.toThrow('Не удалось выделить заголовок идеи');
+  });
 });
