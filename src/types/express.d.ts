@@ -1,7 +1,9 @@
+import type { Role } from 'shared/type/type.role';
+
 export interface AuthUser {
   id: number;
   email: string;
-  role: string;
+  role: Role;
 }
 
 declare global {
