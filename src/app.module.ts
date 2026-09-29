@@ -9,12 +9,14 @@ import { AiModule } from './ai/ai.module';
 import { HealthController } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
 import { IdeasModule } from './ideas/ideas.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
     AuthModule,
     AiModule,
     IdeasModule,
+    UsersModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
