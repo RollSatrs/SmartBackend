@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -14,6 +15,7 @@ import {
 import type { AuthUser } from 'src/types/express';
 import { ClassificationService } from './classification.service';
 import { CreateIdeaDto } from './dto/create-idea.dto';
+import { IdeaFeedbackDto } from './dto/idea-feedback.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
 import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
 import { GeocodingService } from './geocoding.service';
@@ -169,6 +171,38 @@ export class IdeasService {
         changedBy: user.id,
       });
     });
+
+    return this.findOne(id, user);
+  }
+
+  async submitFeedback(id: number, dto: IdeaFeedbackDto, user: AuthUser) {
+    const [idea] = await db
+      .select({ authorId: ideasTable.authorId, status: ideasTable.status })
+      .from(ideasTable)
+      .where(eq(ideasTable.id, id))
+      .limit(1);
+
+    if (!idea) throw new NotFoundException('Идея не найдена');
+    if (idea.authorId !== user.id) {
+      throw new ForbiddenException('Оценить идею может только её автор');
+    }
+    if (idea.status !== 'done') {
+      throw new BadRequestException(
+        'Оценить можно только идею со статусом done',
+      );
+    }
+
+    await db
+      .update(ideasTable)
+      .set({
+        rating: dto.rating,
+        ...(dto.comment !== undefined ? { ratingComment: dto.comment } : {}),
+        ...(dto.afterPhotoUrl !== undefined
+          ? { afterPhotoUrl: dto.afterPhotoUrl }
+          : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(ideasTable.id, id));
 
     return this.findOne(id, user);
   }
