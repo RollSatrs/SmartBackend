@@ -10,6 +10,7 @@ import { HealthController } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
 import { IdeasModule } from './ideas/ideas.module';
 import { UsersModule } from './users/users.module';
+import { DistrictsModule } from './districts/districts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { UsersModule } from './users/users.module';
     AiModule,
     IdeasModule,
     UsersModule,
+    DistrictsModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,
