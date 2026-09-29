@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   ParseIntPipe,
+  Patch,
   Post,
   Query,
   Req,
@@ -11,6 +12,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBadRequestResponse,
   ApiCookieAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
@@ -27,6 +29,8 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { CreateIdeaDto } from './dto/create-idea.dto';
 import { IdeaDetailsDto, IdeasPageDto } from './dto/idea-response.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
+import { AssignIdeaDto } from './dto/assign-idea.dto';
+import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
 import { IdeasService } from './ideas.service';
 
 @ApiTags('ideas')
@@ -62,5 +66,38 @@ export class IdeasController {
   @Get(':id')
   findOne(@Param('id', ParseIntPipe) id: number, @Req() request: Request) {
     return this.ideasService.findOne(id, request.user!);
+  }
+
+  @ApiOperation({ summary: 'Изменить статус идеи' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ type: IdeaDetailsDto })
+  @ApiForbiddenResponse({ description: 'Доступно только госоргану или admin' })
+  @ApiNotFoundResponse({ description: 'Идея не найдена' })
+  @Roles('gov_official', 'admin')
+  @Patch(':id/status')
+  updateStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateIdeaStatusDto,
+    @Req() request: Request,
+  ) {
+    return this.ideasService.updateStatus(id, dto, request.user!);
+  }
+
+  @ApiOperation({ summary: 'Назначить ответственного за идею' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ type: IdeaDetailsDto })
+  @ApiBadRequestResponse({
+    description: 'Пользователь не является сотрудником',
+  })
+  @ApiForbiddenResponse({ description: 'Доступно только госоргану или admin' })
+  @ApiNotFoundResponse({ description: 'Идея или ответственный не найдены' })
+  @Roles('gov_official', 'admin')
+  @Patch(':id/assignee')
+  assign(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: AssignIdeaDto,
+    @Req() request: Request,
+  ) {
+    return this.ideasService.assign(id, dto.assigneeId, request.user!);
   }
 }
