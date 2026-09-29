@@ -9,5 +9,6 @@ import { IdeasService } from './ideas.service';
   imports: [AuthModule],
   controllers: [IdeasController],
   providers: [IdeasService, GeocodingService, ClassificationService],
+  exports: [ClassificationService],
 })
 export class IdeasModule {}
