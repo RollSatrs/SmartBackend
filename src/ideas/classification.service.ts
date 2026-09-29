@@ -13,6 +13,8 @@ export interface ClassificationCategory {
 export interface ClassificationResult {
   categorySlug: string | null;
   confidence: 'high' | 'medium' | 'low';
+  photoFlag: 'consistent' | 'inconsistent' | 'uncertain';
+  photoFlagReason: string | null;
 }
 
 export interface ParsedIdeaResult {
@@ -24,6 +26,7 @@ export interface ParsedIdeaResult {
 const OPENAI_MODEL = 'gpt-4o-mini';
 const REQUEST_TIMEOUT_MS = 8000;
 const CONFIDENCE_VALUES = ['high', 'medium', 'low'] as const;
+const PHOTO_FLAG_VALUES = ['consistent', 'inconsistent', 'uncertain'] as const;
 
 @Injectable()
 export class ClassificationService {
@@ -33,16 +36,24 @@ export class ClassificationService {
     title: string,
     description: string,
     categories: ClassificationCategory[],
+    photoUrl?: string,
   ): Promise<ClassificationResult> {
+    const fallback: ClassificationResult = {
+      categorySlug: null,
+      confidence: 'low',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    };
+
     const apiKey = process.env.OPENAI_API;
     if (!apiKey) {
       this.logger.warn(
         'OPENAI_API не задан — идея останется без автоматической категории',
       );
-      return { categorySlug: null, confidence: 'low' };
+      return fallback;
     }
     if (!categories.length) {
-      return { categorySlug: null, confidence: 'low' };
+      return fallback;
     }
 
     const client = new OpenAI({ apiKey, timeout: REQUEST_TIMEOUT_MS });
@@ -55,7 +66,15 @@ export class ClassificationService {
         messages: [
           {
             role: 'user',
-            content: this.buildPrompt(title, description, categories),
+            content: photoUrl
+              ? [
+                  {
+                    type: 'text',
+                    text: this.buildPrompt(title, description, categories),
+                  },
+                  { type: 'image_url', image_url: { url: photoUrl } },
+                ]
+              : this.buildPrompt(title, description, categories),
           },
         ],
       });
@@ -68,7 +87,7 @@ export class ClassificationService {
       this.logger.warn(
         `Не удалось классифицировать идею: ${error instanceof Error ? error.message : String(error)}`,
       );
-      return { categorySlug: null, confidence: 'low' };
+      return fallback;
     }
   }
 
@@ -160,7 +179,7 @@ export class ClassificationService {
       .map((category) => `${category.slug}: ${category.name}`)
       .join('\n');
 
-    return `Ты классифицируешь обращения жителей города Smart City по категориям городских служб.
+    return `Ты классифицируешь обращения жителей города Smart City по категориям городских служб и проверяешь приложенное фото.
 
 Категории (slug: название):
 ${categoryList}
@@ -169,7 +188,14 @@ ${categoryList}
 Заголовок: ${title}
 Описание: ${description}
 
-Определи одну наиболее подходящую категорию из списка выше по slug. Ответь строго в формате JSON без пояснений и без markdown: {"categorySlug": "<slug из списка или null>", "confidence": "high" | "medium" | "low"}. Если ни одна категория явно не подходит, верни categorySlug: null и confidence: "low".`;
+Задачи:
+1. Определи одну наиболее подходящую категорию из списка выше по slug.
+2. Посмотри на приложенное фото (если оно есть) и оцени, правдоподобно ли оно показывает именно ту проблему, которая описана в заголовке/описании. Если фото явно не относится к описанию (например, случайное фото, скриншот, человек, интерьер, еда — не имеет отношения к заявленной городской проблеме) — отметь как "inconsistent". Если фото похоже на описанную проблему — "consistent". Если фото не приложено или по нему нельзя судить уверенно — "uncertain".
+
+Ответь строго в формате JSON без пояснений и без markdown:
+{"categorySlug": "<slug из списка или null>", "confidence": "high" | "medium" | "low", "photoFlag": "consistent" | "inconsistent" | "uncertain", "photoFlagReason": "<короткое объяснение на русском или null>"}
+
+Если ни одна категория явно не подходит, верни categorySlug: null и confidence: "low". Не выдумывай факты про фото, если не уверен — используй "uncertain".`;
   }
 
   private parseResult(
@@ -179,6 +205,8 @@ ${categoryList}
     const parsed = JSON.parse(content) as {
       categorySlug?: string | null;
       confidence?: string;
+      photoFlag?: string;
+      photoFlagReason?: string | null;
     };
 
     const categorySlug = categories.some(
@@ -193,6 +221,18 @@ ${categoryList}
       ? (parsed.confidence as ClassificationResult['confidence'])
       : 'low';
 
-    return { categorySlug, confidence };
+    const photoFlag = PHOTO_FLAG_VALUES.includes(
+      parsed.photoFlag as (typeof PHOTO_FLAG_VALUES)[number],
+    )
+      ? (parsed.photoFlag as ClassificationResult['photoFlag'])
+      : 'uncertain';
+
+    const photoFlagReason =
+      typeof parsed.photoFlagReason === 'string' &&
+      parsed.photoFlagReason.trim()
+        ? parsed.photoFlagReason.trim()
+        : null;
+
+    return { categorySlug, confidence, photoFlag, photoFlagReason };
   }
 }

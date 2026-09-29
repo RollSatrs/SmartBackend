@@ -28,7 +28,12 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Яма на дороге', 'Глубокая яма у школы', categories),
-    ).resolves.toEqual({ categorySlug: null, confidence: 'low' });
+    ).resolves.toEqual({
+      categorySlug: null,
+      confidence: 'low',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    });
     expect(createMock).not.toHaveBeenCalled();
   });
 
@@ -41,6 +46,8 @@ describe('ClassificationService', () => {
             content: JSON.stringify({
               categorySlug: 'roads',
               confidence: 'high',
+              photoFlag: 'consistent',
+              photoFlagReason: null,
             }),
           },
         },
@@ -50,7 +57,12 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Яма на дороге', 'Глубокая яма у школы', categories),
-    ).resolves.toEqual({ categorySlug: 'roads', confidence: 'high' });
+    ).resolves.toEqual({
+      categorySlug: 'roads',
+      confidence: 'high',
+      photoFlag: 'consistent',
+      photoFlagReason: null,
+    });
   });
 
   it('отбрасывает slug, которого нет в списке категорий', async () => {
@@ -62,6 +74,7 @@ describe('ClassificationService', () => {
             content: JSON.stringify({
               categorySlug: 'unknown-category',
               confidence: 'high',
+              photoFlag: 'uncertain',
             }),
           },
         },
@@ -71,7 +84,54 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Что-то странное', 'Описание', categories),
-    ).resolves.toEqual({ categorySlug: null, confidence: 'high' });
+    ).resolves.toEqual({
+      categorySlug: null,
+      confidence: 'high',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    });
+  });
+
+  it('передаёт photoUrl в запрос и распознаёт несоответствие фото описанию', async () => {
+    process.env.OPENAI_API = 'test-key';
+    createMock.mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              categorySlug: 'roads',
+              confidence: 'medium',
+              photoFlag: 'inconsistent',
+              photoFlagReason: 'На фото кот, а не дорога',
+            }),
+          },
+        },
+      ],
+    });
+    const service = new ClassificationService();
+
+    await expect(
+      service.classify(
+        'Яма на дороге',
+        'Глубокая яма у школы',
+        categories,
+        'https://example.com/photo.jpg',
+      ),
+    ).resolves.toEqual({
+      categorySlug: 'roads',
+      confidence: 'medium',
+      photoFlag: 'inconsistent',
+      photoFlagReason: 'На фото кот, а не дорога',
+    });
+
+    const [firstCallArgs] = createMock.mock.calls[0] as unknown[];
+    const callArgs = firstCallArgs as { messages: { content: unknown }[] };
+    const content = callArgs.messages[0].content as unknown[];
+    expect(Array.isArray(content)).toBe(true);
+    expect(content[1]).toEqual({
+      type: 'image_url',
+      image_url: { url: 'https://example.com/photo.jpg' },
+    });
   });
 
   it('не блокирует создание идеи при ошибке или таймауте OpenAI', async () => {
@@ -81,7 +141,12 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Яма на дороге', 'Глубокая яма у школы', categories),
-    ).resolves.toEqual({ categorySlug: null, confidence: 'low' });
+    ).resolves.toEqual({
+      categorySlug: null,
+      confidence: 'low',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    });
   });
 
   it('возвращает null категорию, если ответ модели не парсится как JSON', async () => {
@@ -93,7 +158,12 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Яма на дороге', 'Глубокая яма у школы', categories),
-    ).resolves.toEqual({ categorySlug: null, confidence: 'low' });
+    ).resolves.toEqual({
+      categorySlug: null,
+      confidence: 'low',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    });
   });
 
   it('не вызывает OpenAI, если список категорий пуст', async () => {
@@ -102,7 +172,12 @@ describe('ClassificationService', () => {
 
     await expect(
       service.classify('Яма на дороге', 'Глубокая яма у школы', []),
-    ).resolves.toEqual({ categorySlug: null, confidence: 'low' });
+    ).resolves.toEqual({
+      categorySlug: null,
+      confidence: 'low',
+      photoFlag: 'uncertain',
+      photoFlagReason: null,
+    });
     expect(createMock).not.toHaveBeenCalled();
   });
 

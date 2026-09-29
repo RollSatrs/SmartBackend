@@ -21,6 +21,12 @@ export const ideaStatusEnum = pgEnum('idea_status', [
   'needs_clarification',
 ]);
 
+export const photoFlagEnum = pgEnum('idea_photo_flag', [
+  'consistent',
+  'inconsistent',
+  'uncertain',
+]);
+
 export const usersTable = pgTable('users', {
   id: integer().primaryKey().generatedAlwaysAsIdentity(),
   fullname: varchar('name', { length: 255 }).notNull(),
@@ -65,6 +71,8 @@ export const ideasTable = pgTable(
     rating: integer(),
     ratingComment: text('rating_comment'),
     afterPhotoUrl: text('after_photo_url'),
+    photoFlag: photoFlagEnum('photo_flag'),
+    photoFlagReason: text('photo_flag_reason'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),
