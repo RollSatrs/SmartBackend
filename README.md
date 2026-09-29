@@ -31,7 +31,7 @@ cp .env.example .env
 | `FRONT_URL`     | URL фронтенда (CORS + ссылки в письмах)                 |
 | `SECRET_KEY`    | Секрет для подписи JWT                                 |
 | `OPENAI_API`    | Ключ OpenAI (опционально, авто-классификация идей по категориям) |
-| `NOMINATIM_URL` | URL Nominatim для reverse geocoding                     |
+| `NOMINATIM_URL` | URL Nominatim для forward/reverse geocoding             |
 | `SMTP_HOST/PORT/SECURE/USER/PASS/FROM` | Настройки почты для сброса пароля      |
 | `NODE_ENV`      | `development` / `production` / `test`                  |
 
