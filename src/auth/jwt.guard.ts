@@ -13,7 +13,12 @@ export class JwtAuthGuard implements CanActivate {
   constructor(private jwtService: JwtService) {}
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
-    const token = req.cookies['access_token'] as string | undefined;
+    const authorization = req.headers.authorization;
+    const bearerToken = authorization?.startsWith('Bearer ')
+      ? authorization.slice(7)
+      : undefined;
+    const token =
+      bearerToken ?? (req.cookies['access_token'] as string | undefined);
     if (!token) throw new UnauthorizedException('Нет токена');
     try {
       const payload = this.jwtService.verify<AuthUser>(token);

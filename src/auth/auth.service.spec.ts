@@ -9,10 +9,15 @@ const selectMock = {
   limit: jest.fn(),
 };
 
+const insertMock = {
+  values: jest.fn().mockReturnThis(),
+  returning: jest.fn(),
+};
+
 jest.mock('src', () => ({
   db: {
     select: jest.fn(() => selectMock),
-    insert: jest.fn(),
+    insert: jest.fn(() => insertMock),
   },
 }));
 
@@ -75,8 +80,12 @@ describe('AuthService', () => {
         password: 'correct-password',
       });
 
-      expect(result.token).toBe('signed.jwt.token');
-      expect(result.user).toMatchObject({ id: 1, email: 'user@test.com' });
+      expect(result.accessToken).toBe('signed.jwt.token');
+      expect(result.user).toMatchObject({
+        id: 1,
+        name: 'Test User',
+        email: 'user@test.com',
+      });
       expect(signMock).toHaveBeenCalledWith({
         id: 1,
         email: 'user@test.com',
@@ -91,12 +100,44 @@ describe('AuthService', () => {
 
       await expect(
         service.register({
-          fullname: 'Test',
+          name: 'Test',
           email: 'taken@test.com',
           password: 'password123',
           role: 'resident',
         }),
       ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('возвращает безопасные данные пользователя и токен', async () => {
+      selectMock.limit.mockResolvedValueOnce([]);
+      insertMock.returning.mockResolvedValueOnce([
+        {
+          id: 2,
+          fullname: 'New User',
+          email: 'new@test.com',
+          passwordHash: 'hashed:password123',
+          role: 'resident',
+          avatar: null,
+          createdAt: new Date(),
+        },
+      ]);
+
+      const result = await service.register({
+        name: 'New User',
+        email: 'new@test.com',
+        password: 'password123',
+        role: 'resident',
+      });
+
+      expect(result.accessToken).toBe('signed.jwt.token');
+      expect(result.user).toEqual({
+        id: 2,
+        name: 'New User',
+        email: 'new@test.com',
+        role: 'resident',
+        avatar: null,
+      });
+      expect(result.user).not.toHaveProperty('passwordHash');
     });
   });
 });

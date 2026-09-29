@@ -24,6 +24,24 @@ export class AuthService {
     private readonly mailService: MailService,
   ) {}
 
+  private createAccessToken(user: typeof usersTable.$inferSelect) {
+    return this.jwtService.sign({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+    });
+  }
+
+  private toAuthUser(user: typeof usersTable.$inferSelect) {
+    return {
+      id: user.id,
+      name: user.fullname,
+      email: user.email,
+      role: user.role,
+      avatar: user.avatar,
+    };
+  }
+
   async register(dto: RegisterDto) {
     const user = await db
       .select()
@@ -33,16 +51,20 @@ export class AuthService {
     if (user.length)
       throw new ConflictException('Пользователь с таким email уже существует');
     const hashPassowrd = await hashFunction(dto.password);
-    const newUser = await db
+    const [newUser] = await db
       .insert(usersTable)
       .values({
-        fullname: dto.fullname,
+        fullname: dto.name,
         email: dto.email,
         passwordHash: hashPassowrd,
         role: dto.role,
       })
       .returning();
-    return { message: 'Регистрация прошла успешно', user: newUser };
+    return {
+      message: 'Регистрация прошла успешно',
+      user: this.toAuthUser(newUser),
+      accessToken: this.createAccessToken(newUser),
+    };
   }
 
   async login(dto: LoginDto) {
@@ -61,23 +83,10 @@ export class AuthService {
     );
     if (!isPasswordValid) throw new UnauthorizedException('Неверный пароль');
 
-    const payload = {
-      id: user[0].id,
-      email: user[0].email,
-      role: user[0].role,
-    };
-
-    const token = this.jwtService.sign(payload);
-
     return {
       message: 'Успешный вход',
-      user: {
-        id: user[0].id,
-        fullname: user[0].fullname,
-        email: user[0].email,
-        role: user[0].role,
-      },
-      token,
+      user: this.toAuthUser(user[0]),
+      accessToken: this.createAccessToken(user[0]),
     };
   }
 
@@ -90,7 +99,7 @@ export class AuthService {
 
     return {
       id: user.id,
-      fullname: user.fullname,
+      name: user.fullname,
       email: user.email,
       role: user.role,
       avatar: user.avatar,
