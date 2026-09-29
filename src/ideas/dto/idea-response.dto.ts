@@ -72,6 +72,16 @@ export class IdeaDto {
   @ApiProperty({ nullable: true })
   afterPhotoUrl: string | null;
 
+  @ApiProperty({
+    nullable: true,
+    enum: ['consistent', 'inconsistent', 'uncertain'],
+    description: 'Оценка AI, соответствует ли фото описанной проблеме',
+  })
+  photoFlag: 'consistent' | 'inconsistent' | 'uncertain' | null;
+
+  @ApiProperty({ nullable: true })
+  photoFlagReason: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

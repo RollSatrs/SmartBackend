@@ -48,6 +48,7 @@ export class IdeasService {
         dto.title,
         dto.description,
         categories,
+        dto.photoUrl,
       ),
     ]);
 
@@ -66,6 +67,8 @@ export class IdeasService {
           addressDistrict,
           photoUrl: dto.photoUrl,
           categoryId: category?.id ?? null,
+          photoFlag: classification.photoFlag,
+          photoFlagReason: classification.photoFlagReason,
         })
         .returning();
 
