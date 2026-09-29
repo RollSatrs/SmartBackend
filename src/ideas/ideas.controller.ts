@@ -29,6 +29,7 @@ import { RolesGuard } from 'src/auth/roles.guard';
 import { CreateIdeaDto } from './dto/create-idea.dto';
 import { IdeaFeedbackDto } from './dto/idea-feedback.dto';
 import { IdeaDetailsDto, IdeasPageDto } from './dto/idea-response.dto';
+import { IdeasDigestDto } from './dto/ideas-digest.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
 import { AssignIdeaDto } from './dto/assign-idea.dto';
 import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
@@ -74,6 +75,17 @@ export class IdeasController {
   @Get()
   findAll(@Query() query: ListIdeasQueryDto, @Req() request: Request) {
     return this.ideasService.findAll(query, request.user!);
+  }
+
+  @ApiOperation({
+    summary: 'Получить недельный дайджест по категориям и районам',
+  })
+  @ApiOkResponse({ type: IdeasDigestDto })
+  @ApiForbiddenResponse({ description: 'Доступно только госоргану или admin' })
+  @Roles('gov_official', 'admin')
+  @Get('digest')
+  getDigest() {
+    return this.ideasService.getDigest();
   }
 
   @ApiOperation({ summary: 'Получить идею с историей статусов' })
