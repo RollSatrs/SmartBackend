@@ -30,7 +30,7 @@ cp .env.example .env
 | `DATABASE_URL`  | Строка подключения к PostgreSQL                        |
 | `FRONT_URL`     | URL фронтенда (CORS + ссылки в письмах)                 |
 | `SECRET_KEY`    | Секрет для подписи JWT                                 |
-| `OPENAI_API`    | Ключ OpenAI (опционально, для `/ai`)                    |
+| `OPENAI_API`    | Ключ OpenAI (опционально, авто-классификация идей по категориям) |
 | `NOMINATIM_URL` | URL Nominatim для reverse geocoding                     |
 | `SMTP_HOST/PORT/SECURE/USER/PASS/FROM` | Настройки почты для сброса пароля      |
 | `NODE_ENV`      | `development` / `production` / `test`                  |
@@ -78,6 +78,16 @@ docker compose up --build
 
 Район идеи определяется через [Nominatim OpenStreetMap](https://nominatim.org/).
 Клиенты должны отображать атрибуцию `© OpenStreetMap contributors` рядом с картой.
+
+## AI-классификация идей
+
+При создании идеи (`POST /ideas`) `ClassificationService` отправляет заголовок и
+описание в OpenAI (`gpt-4o-mini`) и просит вернуть JSON `{ categorySlug, confidence }`
+из уже засеянных категорий (`pnpm db:seed`). Категория подставляется автоматически, если
+`OPENAI_API` задан и модель уверена в ответе (`categorySlug` совпадает с одним из
+известных slug); иначе идея остаётся без категории (`category: null`), и госорган
+выбирает её вручную. Без `OPENAI_API` шаг классификации пропускается — создание идеи
+не блокируется и не падает.
 
 ## Структура проекта
 
