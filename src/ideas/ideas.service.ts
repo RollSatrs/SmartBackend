@@ -12,6 +12,7 @@ import {
   usersTable,
 } from 'src/db/schema';
 import type { AuthUser } from 'src/types/express';
+import { ClassificationService } from './classification.service';
 import { CreateIdeaDto } from './dto/create-idea.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
 import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
@@ -19,13 +20,25 @@ import { GeocodingService } from './geocoding.service';
 
 @Injectable()
 export class IdeasService {
-  constructor(private readonly geocodingService: GeocodingService) {}
+  constructor(
+    private readonly geocodingService: GeocodingService,
+    private readonly classificationService: ClassificationService,
+  ) {}
 
   async create(dto: CreateIdeaDto, user: AuthUser) {
-    const addressDistrict = await this.geocodingService.reverse(
-      dto.lat,
-      dto.lng,
-    );
+    const categories = await db.select().from(categoriesTable);
+
+    const [addressDistrict, classification] = await Promise.all([
+      this.geocodingService.reverse(dto.lat, dto.lng),
+      this.classificationService.classify(
+        dto.title,
+        dto.description,
+        categories,
+      ),
+    ]);
+
+    const category =
+      categories.find((c) => c.slug === classification.categorySlug) ?? null;
 
     return db.transaction(async (tx) => {
       const [idea] = await tx
@@ -38,6 +51,7 @@ export class IdeasService {
           lng: dto.lng,
           addressDistrict,
           photoUrl: dto.photoUrl,
+          categoryId: category?.id ?? null,
         })
         .returning();
 
@@ -57,7 +71,7 @@ export class IdeasService {
         });
 
       return {
-        ...this.withCategory(idea, null),
+        ...this.withCategory(idea, category),
         statusHistory: [history],
       };
     });
