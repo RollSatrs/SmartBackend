@@ -31,6 +31,7 @@ cp .env.example .env
 | `FRONT_URL`     | URL фронтенда (CORS + ссылки в письмах)                 |
 | `SECRET_KEY`    | Секрет для подписи JWT                                 |
 | `OPENAI_API`    | Ключ OpenAI (опционально, для `/ai`)                    |
+| `NOMINATIM_URL` | URL Nominatim для reverse geocoding                     |
 | `SMTP_HOST/PORT/SECURE/USER/PASS/FROM` | Настройки почты для сброса пароля      |
 | `NODE_ENV`      | `development` / `production` / `test`                  |
 
@@ -72,6 +73,11 @@ docker compose up --build
 
 После запуска в режиме, отличном от `production`, Swagger доступен по адресу
 [http://localhost:3001/docs](http://localhost:3001/docs).
+
+## Геокодирование
+
+Район идеи определяется через [Nominatim OpenStreetMap](https://nominatim.org/).
+Клиенты должны отображать атрибуцию `© OpenStreetMap contributors` рядом с картой.
 
 ## Структура проекта
 

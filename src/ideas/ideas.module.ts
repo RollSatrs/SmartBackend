@@ -1,0 +1,12 @@
+import { Module } from '@nestjs/common';
+import { AuthModule } from 'src/auth/auth.module';
+import { GeocodingService } from './geocoding.service';
+import { IdeasController } from './ideas.controller';
+import { IdeasService } from './ideas.service';
+
+@Module({
+  imports: [AuthModule],
+  controllers: [IdeasController],
+  providers: [IdeasService, GeocodingService],
+})
+export class IdeasModule {}

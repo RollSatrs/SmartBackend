@@ -8,11 +8,13 @@ import { AuthModule } from './auth/auth.module';
 import { AiModule } from './ai/ai.module';
 import { HealthController } from './health/health.controller';
 import { validateEnv } from './config/env.validation';
+import { IdeasModule } from './ideas/ideas.module';
 
 @Module({
   imports: [
     AuthModule,
     AiModule,
+    IdeasModule,
     ConfigModule.forRoot({
       isGlobal: true,
       validate: validateEnv,

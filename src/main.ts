@@ -33,7 +33,8 @@ async function bootstrap() {
       .setTitle('Smart City API')
       .setDescription('API платформы «Идеи для региона»')
       .setVersion('1.0')
-      .addCookieAuth('access_token')
+      .addCookieAuth('access_token', { type: 'apiKey' }, 'access_token')
+      .addBearerAuth()
       .build();
     const document = SwaggerModule.createDocument(app, config);
     SwaggerModule.setup('docs', app, document);

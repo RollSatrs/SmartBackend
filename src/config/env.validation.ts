@@ -6,6 +6,7 @@ const envSchema = z.object({
   FRONT_URL: z.string().min(1, 'FRONT_URL обязателен'),
   SECRET_KEY: z.string().min(1, 'SECRET_KEY обязателен'),
   OPENAI_API: z.string().optional(),
+  NOMINATIM_URL: z.url().optional(),
   SMTP_HOST: z.string().min(1, 'SMTP_HOST обязателен'),
   SMTP_PORT: z.coerce.number().default(587),
   SMTP_SECURE: z.string().optional(),
