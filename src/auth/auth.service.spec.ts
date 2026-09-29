@@ -50,7 +50,7 @@ describe('AuthService', () => {
           id: 1,
           email: 'user@test.com',
           passwordHash: 'hashed:correct',
-          role: 'student',
+          role: 'resident',
         },
       ]);
 
@@ -66,7 +66,7 @@ describe('AuthService', () => {
           fullname: 'Test User',
           email: 'user@test.com',
           passwordHash: 'hashed:correct-password',
-          role: 'student',
+          role: 'resident',
         },
       ]);
 
@@ -80,7 +80,7 @@ describe('AuthService', () => {
       expect(signMock).toHaveBeenCalledWith({
         id: 1,
         email: 'user@test.com',
-        role: 'student',
+        role: 'resident',
       });
     });
   });
@@ -94,7 +94,7 @@ describe('AuthService', () => {
           fullname: 'Test',
           email: 'taken@test.com',
           password: 'password123',
-          role: 'student',
+          role: 'resident',
         }),
       ).rejects.toBeInstanceOf(ConflictException);
     });

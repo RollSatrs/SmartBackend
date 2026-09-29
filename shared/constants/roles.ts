@@ -1,2 +1,1 @@
-
-export const ROLES = ['teacher', 'student', 'schoolkid'] as const
+export const ROLES = ['resident', 'gov_official'] as const;
