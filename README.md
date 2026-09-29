@@ -70,7 +70,8 @@ docker compose up --build
 
 ## API-документация
 
-После запуска в режиме, отличном от `production`, Swagger доступен на `/api/docs`.
+После запуска в режиме, отличном от `production`, Swagger доступен по адресу
+[http://localhost:3001/docs](http://localhost:3001/docs).
 
 ## Структура проекта
 
