@@ -63,6 +63,15 @@ export class IdeaDto {
   @ApiProperty({ nullable: true })
   assigneeId: number | null;
 
+  @ApiProperty({ nullable: true, minimum: 1, maximum: 5 })
+  rating: number | null;
+
+  @ApiProperty({ nullable: true })
+  ratingComment: string | null;
+
+  @ApiProperty({ nullable: true })
+  afterPhotoUrl: string | null;
+
   @ApiProperty()
   createdAt: Date;
 

@@ -62,6 +62,9 @@ export const ideasTable = pgTable(
     assigneeId: integer('assignee_id').references(() => usersTable.id, {
       onDelete: 'set null',
     }),
+    rating: integer(),
+    ratingComment: text('rating_comment'),
+    afterPhotoUrl: text('after_photo_url'),
     createdAt: timestamp('created_at', { withTimezone: true })
       .defaultNow()
       .notNull(),

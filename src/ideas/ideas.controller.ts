@@ -27,6 +27,7 @@ import { JwtAuthGuard } from 'src/auth/jwt.guard';
 import { Roles } from 'src/auth/roles.decorator';
 import { RolesGuard } from 'src/auth/roles.guard';
 import { CreateIdeaDto } from './dto/create-idea.dto';
+import { IdeaFeedbackDto } from './dto/idea-feedback.dto';
 import { IdeaDetailsDto, IdeasPageDto } from './dto/idea-response.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
 import { AssignIdeaDto } from './dto/assign-idea.dto';
@@ -48,6 +49,22 @@ export class IdeasController {
   @Post()
   create(@Body() dto: CreateIdeaDto, @Req() request: Request) {
     return this.ideasService.create(dto, request.user!);
+  }
+
+  @ApiOperation({ summary: 'Оценить результат завершённой идеи' })
+  @ApiParam({ name: 'id', type: Number })
+  @ApiOkResponse({ type: IdeaDetailsDto })
+  @ApiBadRequestResponse({ description: 'Идея ещё не завершена' })
+  @ApiForbiddenResponse({ description: 'Пользователь не является автором' })
+  @ApiNotFoundResponse({ description: 'Идея не найдена' })
+  @Roles('resident')
+  @Post(':id/feedback')
+  submitFeedback(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: IdeaFeedbackDto,
+    @Req() request: Request,
+  ) {
+    return this.ideasService.submitFeedback(id, dto, request.user!);
   }
 
   @ApiOperation({
