@@ -3,7 +3,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { and, asc, count, desc, eq, ilike, or, type SQL } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gte,
+  ilike,
+  lt,
+  or,
+  type SQL,
+} from 'drizzle-orm';
 import { db } from 'src';
 import {
   categoriesTable,
@@ -15,6 +26,7 @@ import type { AuthUser } from 'src/types/express';
 import { ClassificationService } from './classification.service';
 import { CreateIdeaDto } from './dto/create-idea.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
+import type { IdeasDigestItemDto } from './dto/ideas-digest.dto';
 import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
 import { GeocodingService } from './geocoding.service';
 
@@ -147,6 +159,75 @@ export class IdeasService {
     };
   }
 
+  async getDigest() {
+    const now = new Date();
+    const currentStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const previousStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+    const baseSelection = {
+      category: categoriesTable.slug,
+      district: ideasTable.addressDistrict,
+      value: count(),
+    };
+
+    const [currentRows, previousRows] = await Promise.all([
+      db
+        .select(baseSelection)
+        .from(ideasTable)
+        .leftJoin(
+          categoriesTable,
+          eq(ideasTable.categoryId, categoriesTable.id),
+        )
+        .where(gte(ideasTable.createdAt, currentStart))
+        .groupBy(categoriesTable.slug, ideasTable.addressDistrict),
+      db
+        .select(baseSelection)
+        .from(ideasTable)
+        .leftJoin(
+          categoriesTable,
+          eq(ideasTable.categoryId, categoriesTable.id),
+        )
+        .where(
+          and(
+            gte(ideasTable.createdAt, previousStart),
+            lt(ideasTable.createdAt, currentStart),
+          ),
+        )
+        .groupBy(categoriesTable.slug, ideasTable.addressDistrict),
+    ]);
+
+    const groups = new Map<string, IdeasDigestItemDto>();
+    for (const row of previousRows) {
+      groups.set(this.digestKey(row.category, row.district), {
+        category: row.category,
+        district: row.district,
+        count: 0,
+        previousCount: row.value,
+        changePercent: -100,
+      });
+    }
+    for (const row of currentRows) {
+      const key = this.digestKey(row.category, row.district);
+      const previousCount = groups.get(key)?.previousCount ?? 0;
+      groups.set(key, {
+        category: row.category,
+        district: row.district,
+        count: row.value,
+        previousCount,
+        changePercent:
+          previousCount === 0
+            ? 100
+            : Math.round(((row.value - previousCount) / previousCount) * 100),
+      });
+    }
+
+    const items = [...groups.values()].sort(
+      (a, b) => b.changePercent - a.changePercent || b.count - a.count,
+    );
+
+    return { items, insight: items[0] ?? null };
+  }
+
   async updateStatus(id: number, dto: UpdateIdeaStatusDto, user: AuthUser) {
     await db.transaction(async (tx) => {
       const [idea] = await tx
@@ -230,5 +311,9 @@ export class IdeasService {
     const { categoryId, ...ideaData } = idea;
     void categoryId;
     return { ...ideaData, category };
+  }
+
+  private digestKey(category: string | null, district: string) {
+    return JSON.stringify([category, district]);
   }
 }
