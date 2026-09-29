@@ -1,14 +1,20 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { and, asc, count, desc, eq, ilike, or, type SQL } from 'drizzle-orm';
 import { db } from 'src';
 import {
   categoriesTable,
   ideasTable,
   ideaStatusHistoryTable,
+  usersTable,
 } from 'src/db/schema';
 import type { AuthUser } from 'src/types/express';
 import { CreateIdeaDto } from './dto/create-idea.dto';
 import { ListIdeasQueryDto } from './dto/list-ideas-query.dto';
+import { UpdateIdeaStatusDto } from './dto/update-idea-status.dto';
 import { GeocodingService } from './geocoding.service';
 
 @Injectable()
@@ -125,6 +131,57 @@ export class IdeasService {
       ...this.withCategory(row.idea, row.category),
       statusHistory,
     };
+  }
+
+  async updateStatus(id: number, dto: UpdateIdeaStatusDto, user: AuthUser) {
+    await db.transaction(async (tx) => {
+      const [idea] = await tx
+        .select({ id: ideasTable.id })
+        .from(ideasTable)
+        .where(eq(ideasTable.id, id))
+        .limit(1);
+
+      if (!idea) throw new NotFoundException('Идея не найдена');
+
+      await tx
+        .update(ideasTable)
+        .set({ status: dto.status, updatedAt: new Date() })
+        .where(eq(ideasTable.id, id));
+
+      await tx.insert(ideaStatusHistoryTable).values({
+        ideaId: id,
+        status: dto.status,
+        comment: dto.comment,
+        changedBy: user.id,
+      });
+    });
+
+    return this.findOne(id, user);
+  }
+
+  async assign(id: number, assigneeId: number, user: AuthUser) {
+    const [assignee] = await db
+      .select({ id: usersTable.id, role: usersTable.role })
+      .from(usersTable)
+      .where(eq(usersTable.id, assigneeId))
+      .limit(1);
+
+    if (!assignee) throw new NotFoundException('Ответственный не найден');
+    if (!['gov_official', 'admin'].includes(assignee.role)) {
+      throw new BadRequestException(
+        'Ответственным может быть только сотрудник госоргана или администратор',
+      );
+    }
+
+    const [updated] = await db
+      .update(ideasTable)
+      .set({ assigneeId, updatedAt: new Date() })
+      .where(eq(ideasTable.id, id))
+      .returning({ id: ideasTable.id });
+
+    if (!updated) throw new NotFoundException('Идея не найдена');
+
+    return this.findOne(id, user);
   }
 
   private buildConditions(query: ListIdeasQueryDto, user: AuthUser) {
