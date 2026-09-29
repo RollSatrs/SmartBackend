@@ -233,12 +233,21 @@ export class IdeasService {
   async updateStatus(id: number, dto: UpdateIdeaStatusDto, user: AuthUser) {
     await db.transaction(async (tx) => {
       const [idea] = await tx
-        .select({ id: ideasTable.id })
+        .select({ id: ideasTable.id, status: ideasTable.status })
         .from(ideasTable)
         .where(eq(ideasTable.id, id))
         .limit(1);
 
       if (!idea) throw new NotFoundException('Идея не найдена');
+
+      if (
+        idea.status === 'done' &&
+        (dto.status === 'in_progress' || dto.status === 'in_review')
+      ) {
+        throw new BadRequestException(
+          'Нельзя вернуть завершённую идею в работу или на рассмотрение',
+        );
+      }
 
       await tx
         .update(ideasTable)
